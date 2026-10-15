@@ -1,1 +1,1077 @@
-__FILE__
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<!-- viewport-fit=cover 用于适配 iPhone 刘海屏 / 底部安全区 -->
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="BMR 计算器">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="format-detection" content="telephone=no">
+<meta name="color-scheme" content="light">
+<meta name="theme-color" content="#e7f5ee">
+<meta name="description" content="BMR 基础代谢计算器：科学估算每日基础热量消耗，支持 TDEE、目标热量、单位换算与食物能量查询">
+<title>BMR 基础代谢计算器</title>
+<!-- 内联 SVG 图标（闪电），可添加到手机主屏幕 -->
+<link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 180 180'%3E%3Crect width='180' height='180' rx='40' fill='%231a8a5c'/%3E%3Ctext x='90' y='124' font-size='96' text-anchor='middle'%3E%E2%9A%A1%3C/text%3E%3C/svg%3E">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='22' fill='%231a8a5c'/%3E%3Ctext x='50' y='70' font-size='56' text-anchor='middle'%3E%E2%9A%A1%3C/text%3E%3C/svg%3E">
+<style>
+  /* ========== 设计变量：淡薄荷绿背景 + 深绿主色 ========== */
+  :root{
+    --bg:#e7f5ee;            /* 背景淡薄荷绿 */
+    --card:#ffffff;          /* 白色圆角卡片 */
+    --primary:#1a8a5c;       /* 主色深绿 */
+    --primary-2:#22a06b;     /* 主色渐变亮端 */
+    --soft:#eaf7f0;          /* 选中态淡绿底 */
+    --soft-border:#9fd6bb;   /* 选中态绿边框 */
+    --line:#d7e8df;
+    --text:#173a2c;
+    --muted:#6b8578;
+    --shadow:0 10px 24px rgba(26,138,92,.10);
+    --shadow-deep:0 10px 22px rgba(26,138,92,.26);
+    --r:18px;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0;padding:0}
+  body{
+    background:var(--bg);
+    color:var(--text);
+    font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Hiragino Sans GB","Microsoft YaHei","Helvetica Neue",Arial,sans-serif;
+    font-size:15px;
+    line-height:1.5;
+    -webkit-font-smoothing:antialiased;
+    max-width:560px;
+    margin:0 auto;
+    /* 适配安全区：刘海 / 圆角 / 底部横条 */
+    padding-top:calc(14px + env(safe-area-inset-top));
+    padding-bottom:calc(30px + env(safe-area-inset-bottom));
+    padding-left:calc(14px + env(safe-area-inset-left));
+    padding-right:calc(14px + env(safe-area-inset-right));
+  }
+  h1,h2,h3,p{margin:0}
+
+  /* ========== 顶部标题区 ========== */
+  .app-head{display:flex;align-items:center;gap:12px;padding:4px 4px 14px}
+  .logo{
+    width:46px;height:46px;flex:0 0 auto;border-radius:14px;
+    background:linear-gradient(160deg,var(--primary-2),var(--primary));
+    display:grid;place-items:center;font-size:23px;line-height:1;
+    box-shadow:var(--shadow-deep);
+  }
+  .app-head h1{font-size:17.5px;font-weight:800;letter-spacing:.2px}
+  .app-head .sub{font-size:12.5px;color:var(--muted);margin-top:2px}
+
+  /* ========== Tab 切换 ========== */
+  .tabs{display:flex;gap:4px;background:var(--card);border-radius:999px;padding:4px;box-shadow:var(--shadow);margin-bottom:14px}
+  .tab{
+    flex:1;border:1px solid transparent;background:transparent;font:inherit;
+    font-size:14.5px;font-weight:600;color:var(--muted);padding:9px 0;
+    border-radius:999px;cursor:pointer;transition:all .18s ease;
+  }
+  .tab.active{background:var(--soft);color:var(--primary);border-color:var(--soft-border)}
+  .panel{display:none}
+  .panel.active{display:block;animation:fadeUp .26s ease}
+  @keyframes fadeUp{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+
+  /* ========== 卡片 ========== */
+  .card{background:var(--card);border-radius:var(--r);padding:16px;box-shadow:var(--shadow);margin-bottom:14px}
+  .card>h2{font-size:14px;font-weight:800;display:flex;align-items:center;gap:8px;margin-bottom:14px}
+  .card>h2::before{content:"";width:6px;height:16px;border-radius:3px;background:linear-gradient(180deg,var(--primary-2),var(--primary))}
+  .card>h2 .tag{font-weight:600;font-size:11.5px;color:var(--primary);background:var(--soft);border:1px solid var(--soft-border);border-radius:999px;padding:1px 8px;margin-left:auto}
+  .field{margin-bottom:12px}
+  .field:last-child{margin-bottom:0}
+  .label{display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:12.5px;color:var(--muted);margin-bottom:6px}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+
+  /* ========== 输入控件 ========== */
+  input[type=number],input[type=search],input[type=text],select{
+    width:100%;font:inherit;font-size:15px;color:var(--text);
+    padding:11px 12px;border:1px solid var(--line);border-radius:12px;
+    background:#f8fdfb;outline:none;transition:all .18s ease;appearance:none;
+  }
+  input:focus,select:focus{border-color:var(--primary);background:#fff;box-shadow:0 0 0 3px rgba(26,138,92,.12)}
+  input::placeholder{color:#a9bdb3}
+  select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath d='M2 4.5 6 8.5 10 4.5' fill='none' stroke='%236b8578' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 12px center;background-size:12px;padding-right:32px}
+
+  /* 选中态：淡绿底 + 绿边框 */
+  .seg{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .seg button{
+    font:inherit;font-size:14.5px;font-weight:600;padding:11px 0;cursor:pointer;
+    border:1px solid var(--line);border-radius:12px;background:#f8fdfb;color:#5c7a6c;
+    transition:all .18s ease;
+  }
+  .seg button.active{background:var(--soft);border-color:var(--primary);color:var(--primary)}
+  .seg button:active{transform:scale(.985)}
+
+  .unit-toggle{
+    font:inherit;font-size:12px;font-weight:600;color:var(--primary);
+    background:var(--soft);border:1px solid var(--soft-border);border-radius:999px;
+    padding:3px 10px;cursor:pointer;
+  }
+
+  /* ========== 按钮 ========== */
+  .btn{
+    width:100%;font:inherit;font-size:16px;font-weight:700;color:#fff;cursor:pointer;
+    background:linear-gradient(160deg,var(--primary-2),var(--primary));
+    border:0;border-radius:14px;padding:15px;box-shadow:var(--shadow-deep);
+    transition:transform .15s ease,opacity .15s ease;
+  }
+  .btn:active{transform:scale(.985)}
+  .btn.ghost{
+    background:#fff;color:#b5453a;border:1px solid #f0d3d0;box-shadow:none;
+    font-size:14px;font-weight:600;padding:11px;
+  }
+
+  /* ========== 结果区 ========== */
+  .result-card{background:linear-gradient(165deg,#f3fbf7,#e6f4ec);border:1px solid #cfe9dc}
+  .bmr-row{display:flex;align-items:flex-end;justify-content:space-between;gap:10px}
+  .bmr-num{font-size:46px;font-weight:800;color:var(--primary);line-height:1.05;letter-spacing:-1px;font-variant-numeric:tabular-nums}
+  .bmr-unit{font-size:13px;color:var(--muted);padding-bottom:8px}
+  .bmr-cap{font-size:12.5px;color:var(--muted);margin-top:2px}
+  .tdee-box{
+    margin-top:14px;background:#fff;border:1px solid #dbece3;border-radius:14px;
+    padding:12px 14px;display:flex;align-items:center;justify-content:space-between;gap:10px;
+  }
+  .tdee-box .lb{font-size:13px;color:var(--muted)}
+  .tdee-box .lb small{color:#9db3aa}
+  .tdee-box b{font-size:22px;color:var(--primary);font-variant-numeric:tabular-nums;white-space:nowrap}
+  .tdee-box b small{font-size:12px;color:var(--muted);font-weight:600}
+  .goals{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:12px}
+  .goal{background:#fff;border:1px solid #dbece3;border-radius:14px;padding:10px 6px;text-align:center}
+  .goal .g-name{font-size:12px;color:var(--muted)}
+  .goal b{display:block;font-size:17px;font-weight:800;color:var(--primary);margin-top:3px;font-variant-numeric:tabular-nums}
+  .goal .g-hint{font-size:10.5px;color:#8ba79a;margin-top:1px}
+
+  /* ========== 说明 / 公式 ========== */
+  .formula{
+    background:#f7fcf9;border:1px dashed #cfe8db;border-radius:12px;padding:10px 12px;
+    font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+    font-size:12.5px;color:#3f6152;line-height:1.7;word-break:break-word;
+  }
+  .formula+.formula{margin-top:8px}
+  .note{font-size:12px;color:#7d938a;line-height:1.65}
+  .note+.note{margin-top:6px}
+
+  /* ========== 单位换算 ========== */
+  .conv{display:grid;grid-template-columns:1fr auto 1fr;gap:8px;align-items:end}
+  .swap{
+    width:38px;height:38px;border-radius:50%;border:1px solid var(--soft-border);
+    background:var(--soft);color:var(--primary);font-size:16px;cursor:pointer;
+    display:grid;place-items:center;margin-bottom:1px;line-height:1;
+  }
+  .swap:active{transform:scale(.94)}
+
+  /* ========== 食物查询 ========== */
+  .chips{display:flex;gap:8px;overflow-x:auto;padding:2px 2px 8px;margin:0 -2px;scrollbar-width:none}
+  .chips::-webkit-scrollbar{display:none}
+  .chip{
+    white-space:nowrap;font:inherit;font-size:13px;padding:6px 12px;border-radius:999px;
+    border:1px solid var(--line);background:#f8fdfb;color:#5c7a6c;cursor:pointer;transition:all .16s ease;
+  }
+  .chip.active{background:var(--soft);border-color:var(--primary);color:var(--primary);font-weight:700}
+  .food-list{margin-top:4px}
+  .food-item{padding:11px 0;border-bottom:1px dashed #e3efe9}
+  .food-item:last-child{border-bottom:0;padding-bottom:0}
+  .fi-top{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+  .fi-top b{font-size:14.5px}
+  .fi-tag{font-size:10.5px;color:var(--primary);background:var(--soft);border-radius:6px;padding:1px 6px;border:1px solid #d3ecdf}
+  .fi-per{font-size:12px;color:var(--muted);margin-left:auto;white-space:nowrap}
+  .fi-meta{font-size:11.5px;color:#8ba79a;margin-top:2px}
+  .fi-calc{display:flex;align-items:center;gap:8px;margin-top:8px}
+  /* 选择器带上 input[type=number]，否则会被上面的通用输入框样式覆盖 */
+  input[type=number].fi-amt{
+    width:80px;flex:0 0 80px;font-size:14px;padding:8px 6px;
+    border:1px solid var(--line);border-radius:10px;background:#f8fdfb;text-align:center;
+    font-variant-numeric:tabular-nums;outline:none;
+  }
+  input[type=number].fi-amt:focus{border-color:var(--primary);background:#fff;box-shadow:0 0 0 3px rgba(26,138,92,.12)}
+  .fi-unit{font-size:12.5px;color:var(--muted)}
+  .fi-res{
+    margin-left:auto;font-size:12.5px;color:var(--muted);
+    background:var(--soft);border:1px solid #d3ecdf;border-radius:999px;padding:5px 12px;
+  }
+  .fi-res b{font-size:15px;color:var(--primary);font-variant-numeric:tabular-nums}
+  .empty{font-size:13px;color:#93a9a0;text-align:center;padding:18px 0}
+
+  /* ========== 体重曲线 ========== */
+  .chart-head{display:flex;align-items:baseline;justify-content:space-between;gap:8px;margin-bottom:8px}
+  .chart-head b{font-size:14px}
+  .chart-head span{font-size:12px;color:var(--muted);text-align:right}
+  canvas{display:block;width:100%;height:200px}
+  .chart-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:12px;text-align:center}
+  .chart-stats div{background:#f7fcf9;border:1px solid #e3f1ea;border-radius:12px;padding:8px 4px}
+  .chart-stats .k{font-size:11px;color:var(--muted)}
+  .chart-stats .v{font-size:14.5px;font-weight:800;color:var(--primary);font-variant-numeric:tabular-nums}
+  .rec-list{list-style:none;margin:0;padding:0}
+  .rec-item{display:flex;align-items:center;gap:10px;padding:11px 0;border-bottom:1px dashed #e3efe9;font-size:14px}
+  .rec-item:last-child{border-bottom:0}
+  .rec-item .t{font-size:12.5px;color:var(--muted)}
+  .rec-item .b{font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums}
+  .rec-item .w{margin-left:auto;font-weight:700;color:var(--primary);font-variant-numeric:tabular-nums}
+  .rec-del{
+    width:26px;height:26px;flex:0 0 auto;border-radius:50%;border:1px solid var(--line);
+    background:#fff;color:#b5453a;font-size:13px;line-height:1;cursor:pointer;display:grid;place-items:center;
+  }
+
+  /* ========== 轻提示 ========== */
+  #toast{
+    position:fixed;left:50%;bottom:calc(26px + env(safe-area-inset-bottom));
+    transform:translate(-50%,16px);opacity:0;pointer-events:none;
+    background:rgba(23,58,44,.93);color:#fff;font-size:13.5px;
+    padding:10px 18px;border-radius:999px;max-width:82vw;text-align:center;
+    transition:all .25s ease;z-index:20;
+  }
+  #toast.show{opacity:1;transform:translate(-50%,0)}
+  .foot{text-align:center;font-size:11.5px;color:#9db3aa;padding:6px 0 2px}
+</style>
+</head>
+<body>
+
+<!-- ========== 顶部 ========== -->
+<header class="app-head">
+  <div class="logo" aria-hidden="true">⚡</div>
+  <div>
+    <h1>BMR 基础代谢计算器</h1>
+    <p class="sub">科学估算每日基础热量消耗</p>
+  </div>
+</header>
+
+<!-- ========== Tab ========== -->
+<nav class="tabs" role="tablist" aria-label="功能切换">
+  <button class="tab active" id="tab-calc" role="tab" aria-selected="true" aria-controls="panel-calc">计算</button>
+  <button class="tab" id="tab-chart" role="tab" aria-selected="false" aria-controls="panel-chart">体重曲线</button>
+</nav>
+
+<main>
+  <!-- ==================== Tab1：计算 ==================== -->
+  <section class="panel active" id="panel-calc" role="tabpanel" aria-labelledby="tab-calc">
+
+    <!-- 性别 -->
+    <div class="card">
+      <h2>性别</h2>
+      <div class="seg" id="genderSeg">
+        <button type="button" data-v="male" class="active">👨 男</button>
+        <button type="button" data-v="female">👩 女</button>
+      </div>
+    </div>
+
+    <!-- 身体数据 -->
+    <div class="card">
+      <h2>身体数据</h2>
+      <div class="field">
+        <label class="label" for="ageIn"><span>年龄</span><span>岁</span></label>
+        <input id="ageIn" type="number" inputmode="decimal" min="5" max="120" step="1" placeholder="例如 28" value="28">
+      </div>
+      <div class="field">
+        <label class="label" for="heightIn"><span>身高</span><span>厘米 cm</span></label>
+        <input id="heightIn" type="number" inputmode="decimal" min="80" max="250" step="0.5" placeholder="例如 172" value="172">
+      </div>
+      <div class="field">
+        <label class="label" for="weightIn">
+          <span>体重</span>
+          <button type="button" class="unit-toggle" id="unitToggle">单位：斤（点击切公斤）</button>
+        </label>
+        <input id="weightIn" type="number" inputmode="decimal" min="0" step="0.1" placeholder="例如 140" value="140">
+      </div>
+      <div class="field">
+        <label class="label" for="actSel"><span>日常活动水平</span><span>用于估算 TDEE</span></label>
+        <select id="actSel">
+          <option value="1.2">久坐少动（办公室 / 几乎不运动）</option>
+          <option value="1.375" selected>轻度活动（每周 1-3 次运动）</option>
+          <option value="1.55">中度活动（每周 3-5 次运动）</option>
+          <option value="1.725">高度活动（每周 6-7 次运动）</option>
+          <option value="1.9">极高活动（体力工作 / 运动员）</option>
+        </select>
+      </div>
+    </div>
+
+    <button class="btn" id="calcBtn" style="margin-bottom:14px">计算 BMR</button>
+
+    <!-- 结果（计算后显示） -->
+    <div class="card result-card" id="resultCard" hidden>
+      <h2>计算结果</h2>
+      <div class="bmr-row">
+        <div>
+          <div class="bmr-num" id="bmrNum">0</div>
+          <div class="bmr-cap">基础代谢 BMR（大卡 / 天）</div>
+        </div>
+        <div class="bmr-unit">kcal/天</div>
+      </div>
+      <div class="tdee-box">
+        <span class="lb">每日总消耗 TDEE<br><small>BMR × 活动系数</small></span>
+        <b><span id="tdeeNum">0</span> <small>kcal</small></b>
+      </div>
+      <div class="goals">
+        <div class="goal">
+          <div class="g-name">减脂</div>
+          <b><span id="cutNum">0</span></b>
+          <div class="g-hint">TDEE −500</div>
+        </div>
+        <div class="goal">
+          <div class="g-name">维持</div>
+          <b><span id="keepNum">0</span></b>
+          <div class="g-hint">= TDEE</div>
+        </div>
+        <div class="goal">
+          <div class="g-name">增肌</div>
+          <b><span id="gainNum">0</span></b>
+          <div class="g-hint">TDEE +300</div>
+        </div>
+      </div>
+      <p class="note" id="resultNote" style="margin-top:12px"></p>
+    </div>
+
+    <!-- 计算方式说明 -->
+    <div class="card">
+      <h2>计算方式说明</h2>
+      <div class="formula">男性 BMR = 10 × 体重(kg) + 6.25 × 身高(cm) − 5 × 年龄 + 5</div>
+      <div class="formula">女性 BMR = 10 × 体重(kg) + 6.25 × 身高(cm) − 5 × 年龄 − 161</div>
+      <p class="note" style="margin-top:10px">
+        <b>Mifflin-St Jeor 公式</b>（1990）由美国营养学界广泛采用，被认为是估算健康成年人基础代谢率最准确的常用公式之一。
+        结果表示你在完全静息状态（躺着不动）下一天所需的最低热量；<b>TDEE</b> 再乘上活动系数，才是你真正每天消耗的热量。
+      </p>
+      <p class="note">
+        提示：体重单位「斤」为市斤，1 斤 = 0.5 公斤，计算时已自动换算成公斤。公式为估算值，个体差异（体成分、激素、疾病）会有 ±10% 左右偏差。
+      </p>
+    </div>
+
+    <!-- 单位换算 -->
+    <div class="card">
+      <h2>单位换算 <span class="tag">1 kcal ≈ 4.184 kJ</span></h2>
+      <div class="conv">
+        <div class="field" style="margin:0">
+          <label class="label" for="kcalIn"><span>千卡 kcal</span></label>
+          <input id="kcalIn" type="number" inputmode="decimal" step="0.01" placeholder="0">
+        </div>
+        <button type="button" class="swap" id="swapBtn" title="互换两侧数值">⇄</button>
+        <div class="field" style="margin:0">
+          <label class="label" for="kjIn"><span>千焦 kJ</span></label>
+          <input id="kjIn" type="number" inputmode="decimal" step="0.01" placeholder="0">
+        </div>
+      </div>
+      <p class="note" style="margin-top:10px">任一侧输入数字，另一侧自动换算。食品包装上多以 kJ 标注，除以 4.184 即得常见的大卡数值。</p>
+      <button class="btn ghost" id="useTdeeBtn" style="margin-top:10px;color:#1a8a5c;border-color:#bfe3d1">把当前 TDEE 填入换算器</button>
+    </div>
+
+    <!-- 食物能量与营养查询 -->
+    <div class="card">
+      <h2>食物能量与营养 <span class="tag" id="foodCount">共 0 种</span></h2>
+      <div class="field">
+        <input id="foodSearch" type="search" placeholder="🔍 搜索食物，如：鸡蛋 / 米饭 / 牛肉" autocomplete="off">
+      </div>
+      <div class="chips" id="foodChips"></div>
+      <div class="food-list" id="foodList"></div>
+      <p class="note" style="margin-top:12px">以上数值为每 100 克可食部的常见参考值（约数），不同品种、部位与烹饪方式会造成明显差异，仅供日常估算参考。</p>
+    </div>
+
+    <p class="foot">计算结果仅供参考，不构成医疗或营养处方建议</p>
+  </section>
+
+  <!-- ==================== Tab2：体重曲线 ==================== -->
+  <section class="panel" id="panel-chart" role="tabpanel" aria-labelledby="tab-chart">
+
+    <div class="card">
+      <h2>体重变化趋势</h2>
+      <div class="chart-head">
+        <b>折线图</b>
+        <span id="chartInfo">暂无记录</span>
+      </div>
+      <canvas id="chart" width="600" height="400" role="img" aria-label="体重变化折线图"></canvas>
+      <div class="chart-stats">
+        <div><div class="k">最新</div><div class="v" id="stLatest">—</div></div>
+        <div><div class="k">最高</div><div class="v" id="stMax">—</div></div>
+        <div><div class="k">最低</div><div class="v" id="stMin">—</div></div>
+        <div><div class="k">变化</div><div class="v" id="stDelta">—</div></div>
+      </div>
+      <p class="note" style="margin-top:10px">每次点击「计算 BMR」会自动记录一条体重数据（仅保存在本机浏览器，不会上传）。</p>
+    </div>
+
+    <div class="card">
+      <h2>历史记录 <span class="tag" id="recCount">0 条</span></h2>
+      <ul class="rec-list" id="recList"></ul>
+      <div id="recEmpty" class="empty">还没有记录，去「计算」页算一次 BMR 吧 ⚡</div>
+      <button class="btn ghost" id="clearBtn" style="margin-top:14px">清空全部记录</button>
+    </div>
+  </section>
+</main>
+
+<div id="toast" role="status" aria-live="polite"></div>
+
+<script>
+(function(){
+  'use strict';
+
+  /* =========================================================
+     0. 小工具
+  ========================================================= */
+  function $(id){ return document.getElementById(id); }
+
+  // 轻提示（Toast）
+  var toastTimer = null;
+  function toast(msg){
+    var el = $('toast');
+    el.textContent = msg;
+    el.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(function(){ el.classList.remove('show'); }, 1900);
+  }
+
+  // 数字格式化：四舍五入到 1 位小数，整数不显示 .0
+  function fmt1(n){
+    var v = Math.round(n * 10) / 10;
+    return (v % 1 === 0) ? String(v) : v.toFixed(1);
+  }
+
+  /* =========================================================
+     1. Tab 切换
+  ========================================================= */
+  var tabCalc = $('tab-calc'), tabChart = $('tab-chart');
+  var panelCalc = $('panel-calc'), panelChart = $('panel-chart');
+
+  function switchTab(which){
+    var calcOn = (which === 'calc');
+    tabCalc.classList.toggle('active', calcOn);
+    tabChart.classList.toggle('active', !calcOn);
+    tabCalc.setAttribute('aria-selected', calcOn ? 'true' : 'false');
+    tabChart.setAttribute('aria-selected', calcOn ? 'false' : 'true');
+    panelCalc.classList.toggle('active', calcOn);
+    panelChart.classList.toggle('active', !calcOn);
+    // 面板隐藏时画布宽度为 0，切回图表页需要重新绘制
+    if(!calcOn){
+      renderRecords();
+      requestAnimationFrame(drawChart);
+    }
+  }
+  tabCalc.addEventListener('click', function(){ switchTab('calc'); });
+  tabChart.addEventListener('click', function(){ switchTab('chart'); });
+
+  /* =========================================================
+     2. 表单状态（性别 / 体重单位）
+  ========================================================= */
+  var state = { gender:'male', unit:'jin' };   // unit: 'jin' 斤 | 'kg' 公斤
+
+  // 性别切换
+  var genderSeg = $('genderSeg');
+  genderSeg.addEventListener('click', function(e){
+    var btn = e.target.closest('button');
+    if(!btn) return;
+    state.gender = btn.dataset.v;
+    Array.prototype.forEach.call(genderSeg.children, function(b){
+      b.classList.toggle('active', b === btn);
+    });
+  });
+
+  // 体重单位切换：斤 ⇄ 公斤，输入框数值同步换算
+  var unitToggle = $('unitToggle'), weightIn = $('weightIn');
+  unitToggle.addEventListener('click', function(){
+    var v = parseFloat(weightIn.value);
+    if(state.unit === 'jin'){
+      state.unit = 'kg';                                  // 斤 -> 公斤
+      unitToggle.textContent = '单位：公斤（点击切斤）';
+      if(!isNaN(v)) weightIn.value = fmt1(v / 2);
+    }else{
+      state.unit = 'jin';                                 // 公斤 -> 斤
+      unitToggle.textContent = '单位：斤（点击切公斤）';
+      if(!isNaN(v)) weightIn.value = fmt1(v * 2);
+    }
+  });
+
+  // 读取当前体重（统一换算为公斤）
+  function getWeightKg(){
+    var v = parseFloat(weightIn.value);
+    if(isNaN(v)) return NaN;
+    return state.unit === 'jin' ? v / 2 : v;
+  }
+
+  /* =========================================================
+     3. 数字滚动动画（结果数字从 0 递增到目标值）
+  ========================================================= */
+  function animateNumber(el, to, decimals, duration){
+    var from = parseFloat(el.dataset.val || '0');
+    if(isNaN(from)) from = 0;
+    if(!duration) duration = 700;
+    if(el._raf) cancelAnimationFrame(el._raf);            // 连续计算时取消上一次动画
+    var t0 = performance.now();
+    function step(t){
+      var p = Math.min(1, (t - t0) / duration);
+      var eased = 1 - Math.pow(1 - p, 3);                 // easeOutCubic，收尾更自然
+      var val = from + (to - from) * eased;
+      el.textContent = val.toFixed(decimals);
+      if(p < 1){
+        el._raf = requestAnimationFrame(step);
+      }else{
+        el.textContent = to.toFixed(decimals);            // 收尾对齐精确值
+        el.dataset.val = String(to);
+      }
+    }
+    el._raf = requestAnimationFrame(step);
+  }
+
+  /* =========================================================
+     4. BMR / TDEE 计算
+  ========================================================= */
+  var ageIn = $('ageIn'), heightIn = $('heightIn'), actSel = $('actSel');
+  var lastTdee = 0;          // 记住上次 TDEE，供「填入换算器」按钮使用
+
+  // Mifflin-St Jeor 公式
+  function calcBMR(gender, kg, cm, age){
+    var base = 10 * kg + 6.25 * cm - 5 * age;
+    return gender === 'male' ? (base + 5) : (base - 161);
+  }
+
+  $('calcBtn').addEventListener('click', function(){
+    var age = parseFloat(ageIn.value);
+    var cm  = parseFloat(heightIn.value);
+    var kg  = getWeightKg();
+
+    // 输入校验
+    if(isNaN(age) || age < 5 || age > 120){ toast('请输入 5-120 之间的年龄'); ageIn.focus(); return; }
+    if(isNaN(cm) || cm < 80 || cm > 250){ toast('请输入 80-250 厘米之间的身高'); heightIn.focus(); return; }
+    if(isNaN(kg) || kg < 15 || kg > 300){ toast('请检查体重数值（当前单位：' + (state.unit === 'jin' ? '斤' : '公斤') + '）'); weightIn.focus(); return; }
+
+    var bmr    = calcBMR(state.gender, kg, cm, age);
+    var factor = parseFloat(actSel.value) || 1.375;
+    var tdee   = bmr * factor;
+
+    // 目标热量：减脂 TDEE-500（但不低于基础代谢），维持 = TDEE，增肌 TDEE+300
+    var cut  = Math.max(tdee - 500, bmr);
+    var gain = tdee + 300;
+
+    var r = Math.round(bmr),  t = Math.round(tdee);
+    var c = Math.round(cut),  g = Math.round(gain);
+
+    // 展示结果并播放数字滚动动画
+    $('resultCard').hidden = false;
+    animateNumber($('bmrNum'),  r, 0);
+    animateNumber($('tdeeNum'), t, 0, 850);
+    animateNumber($('cutNum'),  c, 0, 950);
+    animateNumber($('keepNum'), t, 0, 950);
+    animateNumber($('gainNum'), g, 0, 950);
+
+    $('resultNote').textContent =
+      '按' + (state.gender === 'male' ? '男' : '女') + '性、' + fmt1(kg) + ' 公斤、' + cm + ' 厘米、' + age +
+      ' 岁，活动系数 ' + factor + ' 计算。减脂摄入建议不低于基础代谢 ' + r + ' kcal，热量缺口过大会加速流失肌肉。';
+
+    lastTdee = t;
+    saveRecord(kg, r);                                    // 每次计算自动保存一条体重记录
+    toast('已计算，并记录体重 ' + fmt1(kg) + ' 公斤');
+
+    // 滚动到结果卡片
+    $('resultCard').scrollIntoView({ behavior:'smooth', block:'center' });
+  });
+
+  // 把当前 TDEE 填入换算器
+  $('useTdeeBtn').addEventListener('click', function(){
+    if(!lastTdee){ toast('请先在上方点击「计算 BMR」'); return; }
+    var kcalIn = $('kcalIn');
+    kcalIn.value = lastTdee;
+    kcalIn.dispatchEvent(new Event('input', { bubbles:true }));
+    toast('已填入 TDEE：' + lastTdee + ' kcal');
+  });
+
+  /* =========================================================
+     5. 千卡 kcal ⇄ 千焦 kJ 换算（1 kcal ≈ 4.184 kJ）
+  ========================================================= */
+  var KCAL_PER_KJ = 4.184;
+  var kcalIn = $('kcalIn'), kjIn = $('kjIn');
+  var converting = false;                                 // 防止两侧互相触发造成死循环
+
+  function kcalToKj(){
+    if(converting) return;
+    converting = true;
+    var v = parseFloat(kcalIn.value);
+    kjIn.value = isNaN(v) ? '' : (Math.round(v * KCAL_PER_KJ * 100) / 100);
+    converting = false;
+  }
+  function kjToKcal(){
+    if(converting) return;
+    converting = true;
+    var v = parseFloat(kjIn.value);
+    kcalIn.value = isNaN(v) ? '' : (Math.round(v / KCAL_PER_KJ * 100) / 100);
+    converting = false;
+  }
+  kcalIn.addEventListener('input', kcalToKj);
+  kjIn.addEventListener('input', kjToKcal);
+
+  // 互换两侧数值
+  $('swapBtn').addEventListener('click', function(){
+    var a = kcalIn.value;
+    kcalIn.value = kjIn.value;
+    kjIn.value = a;
+    kcalToKj();
+  });
+
+  /* =========================================================
+     6. 食物能量与营养数据
+        每 100 克可食部：[名称, 热量 kcal, 蛋白质 g, 碳水 g, 脂肪 g]
+  ========================================================= */
+  var FOOD_DATA = [
+    { cat:'牛肉', items:[
+      ['牛肉（瘦）',106,20.2,1.2,2.3],
+      ['牛里脊',107,22.2,0.9,2.9],
+      ['牛肉（肥瘦）',125,19.9,0.2,4.2],
+      ['牛腩',332,17.1,0,29.0],
+      ['酱牛肉',246,31.4,3.2,11.9],
+      ['牛肉干',550,45.6,1.9,40.0]
+    ]},
+    { cat:'猪肉', items:[
+      ['猪里脊',155,20.2,0.7,7.9],
+      ['猪瘦肉',143,20.3,1.5,6.2],
+      ['五花肉',568,7.7,2.4,59.0],
+      ['猪蹄',260,22.6,0,18.8],
+      ['培根',370,22.0,1.5,31.0],
+      ['火腿肠',212,14.0,15.6,10.4]
+    ]},
+    { cat:'禽肉', items:[
+      ['鸡胸肉',133,19.4,2.5,5.0],
+      ['鸡腿',181,16.0,0,13.0],
+      ['鸡翅',194,17.4,4.6,11.8],
+      ['炸鸡',279,20.0,12.0,17.0],
+      ['鸭肉',240,15.5,0.2,19.7],
+      ['鹅肉',251,17.9,0,19.9]
+    ]},
+    { cat:'水产', items:[
+      ['三文鱼',139,17.2,0,7.8],
+      ['金枪鱼',130,24.0,0,3.0],
+      ['带鱼',127,17.7,3.1,4.9],
+      ['鲤鱼',109,17.6,0.5,4.1],
+      ['草鱼',113,16.6,0,5.2],
+      ['虾（对虾）',93,18.6,2.8,0.8],
+      ['螃蟹',95,17.5,2.3,2.6],
+      ['鱿鱼',84,17.0,3.0,1.4]
+    ]},
+    { cat:'蛋奶', items:[
+      ['鸡蛋',144,13.3,2.8,8.8],
+      ['蛋清',60,11.6,3.1,0.1],
+      ['蛋黄',328,15.2,3.4,28.2],
+      ['牛奶（全脂）',65,3.0,3.4,3.6],
+      ['脱脂牛奶',33,3.4,5.0,0.3],
+      ['酸奶',72,2.5,9.3,2.7],
+      ['奶酪',328,25.7,3.5,23.5],
+      ['豆浆',31,3.0,1.0,1.6]
+    ]},
+    { cat:'主食', items:[
+      ['白米饭',116,2.6,25.9,0.3],
+      ['糙米饭',112,2.8,23.0,0.9],
+      ['馒头',223,7.0,47.0,1.1],
+      ['面条（煮）',110,4.5,24.0,0.5],
+      ['白面包',312,8.3,58.6,5.1],
+      ['全麦面包',246,8.8,45.0,3.3],
+      ['燕麦片',367,15.0,61.6,6.7],
+      ['玉米（鲜）',112,4.0,22.8,1.2],
+      ['红薯',86,1.6,20.0,0.2],
+      ['土豆',77,2.0,17.2,0.2],
+      ['小米粥',46,1.4,8.4,0.7]
+    ]},
+    { cat:'蔬菜', items:[
+      ['西兰花',36,4.1,4.3,0.6],
+      ['菠菜',28,2.6,4.5,0.3],
+      ['番茄',20,0.9,4.0,0.2],
+      ['黄瓜',16,0.8,2.9,0.2],
+      ['胡萝卜',39,1.0,8.8,0.2],
+      ['生菜',15,1.3,2.0,0.3],
+      ['香菇',26,2.2,5.2,0.3]
+    ]},
+    { cat:'水果', items:[
+      ['苹果',54,0.2,13.5,0.2],
+      ['香蕉',93,1.4,22.0,0.2],
+      ['橙子',48,0.8,11.1,0.2],
+      ['葡萄',44,0.5,10.3,0.2],
+      ['西瓜',31,0.6,6.8,0.1],
+      ['草莓',32,1.0,7.1,0.2],
+      ['牛油果',171,2.0,7.4,15.3]
+    ]},
+    { cat:'坚果油脂', items:[
+      ['花生',574,24.8,21.7,44.3],
+      ['核桃',646,14.9,19.1,58.8],
+      ['杏仁',578,21.2,21.6,50.6],
+      ['芝麻酱',618,19.2,16.8,52.7],
+      ['橄榄油',899,0,0,99.9],
+      ['黄油',888,1.4,0,98.0]
+    ]},
+    { cat:'饮品零食', items:[
+      ['可乐',43,0,10.8,0],
+      ['啤酒',32,0.4,3.1,0],
+      ['拿铁咖啡',45,2.4,4.0,2.2],
+      ['冰淇淋',127,2.4,22.0,3.5],
+      ['黑巧克力',546,5.5,45.0,40.0],
+      ['薯片',555,6.0,50.0,35.0],
+      ['豆腐',82,8.1,4.2,3.7]
+    ]}
+  ];
+
+  // 展平为一维数组，并建立 key -> 食物 的索引表
+  var FOODS = [], FOOD_MAP = {};
+  FOOD_DATA.forEach(function(group){
+    group.items.forEach(function(it){
+      var f = { key: group.cat + '|' + it[0], cat: group.cat, name: it[0],
+                kcal: it[1], p: it[2], c: it[3], f: it[4] };
+      FOODS.push(f);
+      FOOD_MAP[f.key] = f;
+    });
+  });
+  $('foodCount').textContent = '共 ' + FOODS.length + ' 种';
+
+  /* =========================================================
+     7. 食物查询：分类筛选 + 关键词搜索 + 按克重换算
+  ========================================================= */
+  var foodSearch = $('foodSearch'), foodChips = $('foodChips'), foodList = $('foodList');
+  var activeCat = '全部';
+  var amountMap = {};        // key -> 已输入的克数，重新渲染时保留
+
+  // 分类按钮
+  var CATS = ['全部'].concat(FOOD_DATA.map(function(g){ return g.cat; }));
+  foodChips.innerHTML = CATS.map(function(c){
+    return '<button type="button" class="chip' + (c === '全部' ? ' active' : '') + '" data-cat="' + c + '">' + c + '</button>';
+  }).join('');
+
+  foodChips.addEventListener('click', function(e){
+    var btn = e.target.closest('.chip');
+    if(!btn) return;
+    activeCat = btn.dataset.cat;
+    Array.prototype.forEach.call(foodChips.children, function(b){
+      b.classList.toggle('active', b === btn);
+    });
+    renderFoods();
+  });
+
+  function renderFoods(){
+    var kw = foodSearch.value.trim();
+    var list = FOODS.filter(function(f){
+      if(activeCat !== '全部' && f.cat !== activeCat) return false;
+      if(kw && f.name.indexOf(kw) < 0 && (f.cat + f.name).indexOf(kw) < 0) return false;
+      return true;
+    });
+
+    if(!list.length){
+      foodList.innerHTML = '<div class="empty">没有找到匹配的食物，换个关键词试试～</div>';
+      return;
+    }
+
+    foodList.innerHTML = list.map(function(f){
+      var grams = amountMap[f.key];
+      if(grams === undefined) grams = 100;               // 默认按 100 克展示
+      amountMap[f.key] = grams;
+      var kcal = f.kcal * grams / 100;
+      return ''
+      + '<div class="food-item">'
+      +   '<div class="fi-top">'
+      +     '<b>' + f.name + '</b>'
+      +     '<span class="fi-tag">' + f.cat + '</span>'
+      +     '<span class="fi-per">100g = ' + f.kcal + ' kcal</span>'
+      +   '</div>'
+      +   '<div class="fi-meta">蛋白质 ' + f.p + 'g · 碳水 ' + f.c + 'g · 脂肪 ' + f.f + 'g</div>'
+      +   '<div class="fi-calc">'
+      +     '<input class="fi-amt" type="number" inputmode="decimal" min="0" step="10" data-key="' + f.key + '" value="' + grams + '" aria-label="' + f.name + ' 食用量（克）">'
+      +     '<span class="fi-unit">克</span>'
+      +     '<span class="fi-res"><b>' + fmt1(kcal) + '</b> kcal</span>'
+      +   '</div>'
+      + '</div>';
+    }).join('');
+  }
+
+  // 克数变化时实时换算（事件委托，避免逐条绑定）
+  foodList.addEventListener('input', function(e){
+    var input = e.target;
+    if(!input.classList || !input.classList.contains('fi-amt')) return;
+    var f = FOOD_MAP[input.dataset.key];
+    if(!f) return;
+    var grams = parseFloat(input.value);
+    if(isNaN(grams) || grams < 0) grams = 0;
+    amountMap[input.dataset.key] = grams;
+    var res = input.parentNode.querySelector('.fi-res b');
+    if(res) res.textContent = fmt1(f.kcal * grams / 100);
+  });
+
+  foodSearch.addEventListener('input', renderFoods);
+  renderFoods();
+
+  /* =========================================================
+     8. 体重记录：localStorage（仅存本机）
+  ========================================================= */
+  var STORE_KEY = 'bmr.weight.records.v1';
+  var records = loadRecords();
+
+  function loadRecords(){
+    try{
+      var raw = localStorage.getItem(STORE_KEY);
+      if(!raw) return [];
+      var arr = JSON.parse(raw);
+      if(!Array.isArray(arr)) return [];
+      // 过滤脏数据，并按时间升序排列
+      return arr.filter(function(r){
+        return r && typeof r.t === 'number' && typeof r.kg === 'number';
+      }).sort(function(a, b){ return a.t - b.t; });
+    }catch(err){
+      return [];
+    }
+  }
+
+  function persist(){
+    try{
+      localStorage.setItem(STORE_KEY, JSON.stringify(records));
+    }catch(err){
+      toast('本机存储写入失败（可能空间已满）');
+    }
+  }
+
+  function saveRecord(kg, bmr){
+    records.push({ t: Date.now(), kg: Math.round(kg * 10) / 10, bmr: bmr });
+    if(records.length > 300) records = records.slice(records.length - 300);   // 数量上限保护
+    records.sort(function(a, b){ return a.t - b.t; });
+    persist();
+    renderRecords();
+    drawChart();
+  }
+
+  // 时间格式化：MM-DD HH:mm（可选带年份）
+  function fmtTime(ts, withYear){
+    var d = new Date(ts);
+    function p2(n){ return n < 10 ? '0' + n : '' + n; }
+    var s = p2(d.getMonth() + 1) + '-' + p2(d.getDate()) + ' ' + p2(d.getHours()) + ':' + p2(d.getMinutes());
+    return withYear ? (d.getFullYear() + '-' + s) : s;
+  }
+
+  // 渲染历史列表 + 统计信息
+  function renderRecords(){
+    var listEl = $('recList'), emptyEl = $('recEmpty');
+    $('recCount').textContent = records.length + ' 条';
+
+    if(!records.length){
+      listEl.innerHTML = '';
+      emptyEl.hidden = false;
+      $('stLatest').textContent = '—';
+      $('stMax').textContent = '—';
+      $('stMin').textContent = '—';
+      $('stDelta').textContent = '—';
+      $('chartInfo').textContent = '暂无记录';
+      return;
+    }
+    emptyEl.hidden = true;
+
+    // 列表倒序展示（最新在最上）
+    listEl.innerHTML = records.slice().reverse().map(function(r, i){
+      var idx = records.length - 1 - i;
+      return ''
+      + '<li class="rec-item">'
+      +   '<span class="t">' + fmtTime(r.t, true) + '</span>'
+      +   '<span class="b">BMR ' + r.bmr + '</span>'
+      +   '<span class="w">' + fmt1(r.kg) + ' kg</span>'
+      +   '<button class="rec-del" data-idx="' + idx + '" aria-label="删除这条记录">✕</button>'
+      + '</li>';
+    }).join('');
+
+    // 统计：最新 / 最高 / 最低 / 变化量
+    var kgs = records.map(function(r){ return r.kg; });
+    var latest = kgs[kgs.length - 1], first = kgs[0], delta = latest - first;
+    $('stLatest').textContent = fmt1(latest);
+    $('stMax').textContent = fmt1(Math.max.apply(null, kgs));
+    $('stMin').textContent = fmt1(Math.min.apply(null, kgs));
+    $('stDelta').textContent = (delta > 0 ? '+' : '') + fmt1(delta);
+    $('chartInfo').textContent = records.length + ' 条 · ' + fmtTime(records[0].t) +
+      ' 至 ' + fmtTime(records[records.length - 1].t);
+  }
+
+  // 删除单条记录
+  $('recList').addEventListener('click', function(e){
+    var btn = e.target.closest('.rec-del');
+    if(!btn) return;
+    var idx = parseInt(btn.dataset.idx, 10);
+    if(isNaN(idx) || !records[idx]) return;
+    records.splice(idx, 1);
+    persist();
+    renderRecords();
+    drawChart();
+    toast('已删除该条记录');
+  });
+
+  // 清空全部记录（二次确认）
+  $('clearBtn').addEventListener('click', function(){
+    if(!records.length){ toast('当前没有记录'); return; }
+    if(!confirm('确定清空全部 ' + records.length + ' 条体重记录吗？此操作无法撤销。')) return;
+    records = [];
+    persist();
+    renderRecords();
+    drawChart();
+    toast('记录已清空');
+  });
+
+  /* =========================================================
+     9. 折线图：纯 Canvas 手写，无任何外部库
+  ========================================================= */
+  var canvas = $('chart'), ctx = canvas.getContext('2d');
+
+  function drawChart(){
+    var cssW = canvas.clientWidth || (canvas.parentNode && canvas.parentNode.clientWidth);
+    if(!cssW) return;                                     // 面板隐藏时宽度为 0，跳过绘制
+    var cssH = 200;
+    var dpr = window.devicePixelRatio || 1;
+
+    // 按设备像素比放大画布，保证高分屏不模糊
+    canvas.width  = Math.round(cssW * dpr);
+    canvas.height = Math.round(cssH * dpr);
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.clearRect(0, 0, cssW, cssH);
+
+    var padL = 36, padR = 14, padT = 16, padB = 26;
+    var W = cssW - padL - padR, H = cssH - padT - padB;
+
+    ctx.font = '11px -apple-system,"PingFang SC","Microsoft YaHei",sans-serif';
+    ctx.textBaseline = 'middle';
+
+    // —— 空状态提示 ——
+    if(!records.length){
+      ctx.textAlign = 'center';
+      ctx.fillStyle = '#93a9a0';
+      ctx.fillText('暂无体重记录', cssW / 2, cssH / 2 - 9);
+      ctx.fillStyle = '#b6c8c0';
+      ctx.fillText('去「计算」页算一次 BMR 就会自动记录', cssW / 2, cssH / 2 + 11);
+      return;
+    }
+
+    var kgs = records.map(function(r){ return r.kg; });
+    var min = Math.min.apply(null, kgs), max = Math.max.apply(null, kgs);
+    var span = max - min;
+    if(span < 1){                                          // 变化很小时撑开范围，避免线贴边
+      var mid = (max + min) / 2;
+      min = mid - 0.5; max = mid + 0.5; span = 1;
+    }
+    var pad = span * 0.18;                                 // 上下留白
+    var lo = min - pad, hi = max + pad;
+
+    var n = records.length;
+    function X(i){ return padL + (n === 1 ? W / 2 : (W * i) / (n - 1)); }
+    function Y(kg){ return padT + H - ((kg - lo) / (hi - lo)) * H; }
+
+    // —— 横向网格线 + 体重刻度 ——
+    ctx.strokeStyle = '#e6f2eb';
+    ctx.lineWidth = 1;
+    ctx.fillStyle = '#9db3aa';
+    ctx.textAlign = 'right';
+    for(var g = 0; g <= 3; g++){
+      var gy = padT + (H * g) / 3;
+      ctx.beginPath();
+      ctx.moveTo(padL, gy + .5);
+      ctx.lineTo(padL + W, gy + .5);
+      ctx.stroke();
+      ctx.fillText(fmt1(hi - ((hi - lo) * g) / 3), padL - 6, gy);
+    }
+
+    // —— 折线下方渐变填充 ——
+    if(n > 1){
+      var grad = ctx.createLinearGradient(0, padT, 0, padT + H);
+      grad.addColorStop(0, 'rgba(26,138,92,.26)');
+      grad.addColorStop(1, 'rgba(26,138,92,0)');
+      ctx.beginPath();
+      ctx.moveTo(X(0), Y(kgs[0]));
+      for(var a = 1; a < n; a++) ctx.lineTo(X(a), Y(kgs[a]));
+      ctx.lineTo(X(n - 1), padT + H);
+      ctx.lineTo(X(0), padT + H);
+      ctx.closePath();
+      ctx.fillStyle = grad;
+      ctx.fill();
+    }
+
+    // —— 主折线 ——
+    if(n > 1){
+      ctx.beginPath();
+      ctx.moveTo(X(0), Y(kgs[0]));
+      for(var b = 1; b < n; b++) ctx.lineTo(X(b), Y(kgs[b]));
+      ctx.strokeStyle = '#1a8a5c';
+      ctx.lineWidth = 2.4;
+      ctx.lineJoin = 'round';
+      ctx.lineCap = 'round';
+      ctx.stroke();
+    }
+
+    // —— 数据点：点较多时只画首尾与最新，避免糊成一片 ——
+    var showAll = n <= 24;
+    for(var k = 0; k < n; k++){
+      var isEdge = (k === 0 || k === n - 1 || k === n - 2);
+      if(!showAll && !isEdge) continue;
+      ctx.beginPath();
+      ctx.arc(X(k), Y(kgs[k]), 4, 0, Math.PI * 2);
+      ctx.fillStyle = '#fff';
+      ctx.fill();
+      ctx.lineWidth = 2.4;
+      ctx.strokeStyle = '#1a8a5c';
+      ctx.stroke();
+    }
+
+    // —— 最新数值标签（圆角气泡）——
+    var lx = X(n - 1), ly = Y(kgs[n - 1]);
+    var label = fmt1(kgs[n - 1]) + 'kg';
+    ctx.textAlign = 'center';
+    var bw = ctx.measureText(label).width + 16, bh = 18, r = 9;
+    var bx = Math.min(Math.max(lx, padL + bw / 2), padL + W - bw / 2);
+    var by = Math.max(ly - 24, padT + 2);
+    var x0 = bx - bw / 2, y0 = by - bh / 2;
+    ctx.beginPath();
+    ctx.moveTo(x0 + r, y0);
+    ctx.lineTo(x0 + bw - r, y0);
+    ctx.quadraticCurveTo(x0 + bw, y0, x0 + bw, y0 + r);
+    ctx.lineTo(x0 + bw, y0 + bh - r);
+    ctx.quadraticCurveTo(x0 + bw, y0 + bh, x0 + bw - r, y0 + bh);
+    ctx.lineTo(x0 + r, y0 + bh);
+    ctx.quadraticCurveTo(x0, y0 + bh, x0, y0 + bh - r);
+    ctx.lineTo(x0, y0 + r);
+    ctx.quadraticCurveTo(x0, y0, x0 + r, y0);
+    ctx.closePath();
+    ctx.fillStyle = '#1a8a5c';
+    ctx.fill();
+    ctx.fillStyle = '#fff';
+    ctx.fillText(label, bx, by + .5);
+
+    // —— 横轴：首尾时间标签 ——
+    ctx.fillStyle = '#9db3aa';
+    ctx.textAlign = 'left';
+    ctx.fillText(fmtTime(records[0].t), padL, cssH - 10);
+    if(n > 1){
+      ctx.textAlign = 'right';
+      ctx.fillText(fmtTime(records[n - 1].t), padL + W, cssH - 10);
+    }
+  }
+
+  // 窗口尺寸 / 屏幕旋转变化时重绘
+  var resizeTimer = null;
+  window.addEventListener('resize', function(){
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(drawChart, 160);
+  });
+
+  /* =========================================================
+     10. PWA manifest（运行时内联生成，无需外部文件）
+  ========================================================= */
+  try{
+    var iconUrl = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 180 180'%3E%3Crect width='180' height='180' rx='40' fill='%231a8a5c'/%3E%3Ctext x='90' y='124' font-size='96' text-anchor='middle'%3E%E2%9A%A1%3C/text%3E%3C/svg%3E";
+    var manifest = {
+      name: 'BMR 基础代谢计算器',
+      short_name: 'BMR 计算器',
+      description: '科学估算每日基础热量消耗',
+      start_url: '.',
+      scope: '.',
+      display: 'standalone',
+      orientation: 'portrait',
+      background_color: '#e7f5ee',
+      theme_color: '#1a8a5c',
+      lang: 'zh-CN',
+      icons: [{ src: iconUrl, sizes: '180x180', type: 'image/svg+xml', purpose: 'any' }]
+    };
+    var blob = new Blob([JSON.stringify(manifest)], { type:'application/manifest+json' });
+    var link = document.createElement('link');
+    link.rel = 'manifest';
+    link.href = URL.createObjectURL(blob);
+    document.head.appendChild(link);
+  }catch(err){ /* 个别浏览器不支持时静默忽略 */ }
+
+  /* =========================================================
+     11. 初始化
+  ========================================================= */
+  renderRecords();
+  drawChart();
+
+})();
+</script>
+</body>
+</html>
